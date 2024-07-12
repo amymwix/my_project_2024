@@ -6,7 +6,7 @@ format:
     theme: lux
 ---
 
-```{r setup, include=FALSE}
+```{r echo=FALSE,message=F,warning=FALSE}
 if(!require(pacman))install.packages("pacman")
 pacman::p_load(tidyverse,gapminder,knitr,
                plotly,janitor,here,
@@ -19,18 +19,9 @@ pacman::p_load(tidyverse,gapminder,knitr,
                sf,
                dplyr,
                htmltools)
-# Check current memory limit
-memory_limit <- memory.limit()
-cat("Current memory limit (in MB):", memory_limit, "\n")
-
-# Set a new memory limit (in MB)
-new_limit <- 8000  # 8 GB
-memory.limit(new_limit)
-cat("New memory limit set to (in MB):", new_limit, "\n\n")
-
 ```
 
-```{r, echo=TRUE, eval=TRUE}
+```{r echo=FALSE,message=F,warning=FALSE}
 # Function to convert strings like "150k" or "1.2M" to numeric
 convert_to_numeric <- function(x) {
   case_when(
@@ -69,7 +60,7 @@ suicide_gini_pop_data <- suicide_gini_pop_data %>%
   mutate(suicide_rate_per_100k = (total_suicides / population) * 100000)
 ```
 
-```{r warning = FALSE, echo=TRUE}
+```{r echo=FALSE,message=F,warning=FALSE}
 # Load world map data
 world <- ne_countries(scale = "medium", returnclass = "sf")
 
@@ -94,6 +85,7 @@ world_data <- world %>%
 world_data <- world_data %>%
   mutate(country = coalesce(country.x, country.x.x, country.y)) %>%
   filter(year %in% 1995:2019) %>%
+  select(country, year, population, suicide_rate_per_100k, gini_index) %>% 
   mutate(tooltip_label = paste("Country: ", country, "<br>",
                                "Suicide Rate: ",
                                round(suicide_rate_per_100k, 2),
@@ -105,57 +97,18 @@ world_data <- world_data %>%
 # Ensuring `year` is in numeric or integer format
 world_data <- world_data %>%
   mutate(year = as.integer(year))
-
-# ggplot for the map with frame and tooltip labels
-suicide_rate_map <- ggplot(world_data, aes(fill = suicide_rate_per_100k, frame = year, text = tooltip_label)) +
-  geom_sf() +
-  scale_fill_viridis_c(option = "viridis", na.value = "grey50") +
-  labs(title = 'Worldwide Suicide Rate per 100,000 Population 1995-2019',
-       fill = 'Suicide Rate',
-       caption = 'Data Source: Gapminder') +
-  theme_minimal() +
-  coord_sf()
-
-# Convert ggplot to plotly for interactive visualization
-suicide_rate_map_plotly <- ggplotly(suicide_rate_map, tooltip = "text")
+   
 ```
 
-```{r, echo=TRUE, eval=TRUE}
-# Calculate weighted average suicide rate per 100,000 people for each country
+
+```{r echo=FALSE,message=F,warning=FALSE}
+ #Calculate weighted average suicide rate per 100,000 people for each country
 weighted_avg_suicide_rate_per_country <- world_data %>%
   group_by(country) %>%
   summarize(weighted_avg_suicide_rate_per_100k = sum(suicide_rate_per_100k
                                                      * population) /
               sum(population, na.rm = TRUE))
 
-# Extract the top 20 countries by weighted average suicide rate
-top_20_weighted_countries <- weighted_avg_suicide_rate_per_country %>%
-  top_n(20, wt = weighted_avg_suicide_rate_per_100k) %>%
-  arrange(desc(weighted_avg_suicide_rate_per_100k))
-```
-
-
-```{r bar_plot, echo=FALSE, eval=TRUE}
-# Plot for suicide rate per 100,000 people for top 20 countries
-bar_plot_1 <- ggplot(top_20_weighted_countries, aes(x = reorder(country, weighted_avg_suicide_rate_per_100k),
-                                                     y =   weighted_avg_suicide_rate_per_100k, fill = country, 
-                                                     text = paste("Country: ", country, "<br>",
-                                                                  "Weighted Avg Suicide Rate: ",
-                                                                  round(weighted_avg_suicide_rate_per_100k, 2)))) +
-                                                                  
-  geom_bar(stat = "identity") +
-  coord_flip() +
-  labs(title = "Top 20 Countries Weighted Average\nSuicide Rate per 100,000
-       People",
-       x = "Country",
-       y = "Suicide Rate per 100,000 People") +
-  theme_minimal() + 
-  theme(legend.position = "none")
-
-bar_plot_1_plotly <- ggplotly(bar_plot_1, tooltip = "text")
-```
-
-```{r, echo=TRUE}
 # Calculate the country with the highest weighted average suicide rate
 highest_weighted_avg_suicide_rate_country <- weighted_avg_suicide_rate_per_country %>%
   arrange(desc(weighted_avg_suicide_rate_per_100k)) %>%
@@ -192,14 +145,79 @@ overall_avg_suicide_rate <- round(overall_avg_suicide_rate, 2)
 ```
 
 
-```{r echo=TRUE, eval=TRUE}
+```{r focus on Hungary, echo=FALSE,message=F,warning=FALSE}
 # Hungary Specific Data
 hungary_suicide_data <- world_data %>%
-  filter(country == "Hungary" & year >= 1995 & year <= 2019)
+  filter(country == "Hungary" & year >= 1995 & year <= 2019) %>% 
+   select(country, year, population, suicide_rate_per_100k, gini_index)
 
 hungary_suicide_data_adjusted <- hungary_suicide_data %>%
   mutate(adjusted_suicide_rate_per_100k = (suicide_rate_per_100k * 100000) / population)
 
+```
+
+
+# HOME 
+
+The project explores global suicide rates in relation to the Gini Index—a measure of income inequality from 0 to 1—between 1995 and 2019. Using population data, it aims to offer demographic insights into worldwide suicide rates through an interactive dashboard. This tool will aid policymakers, researchers, and the public in understanding these socio-economic factors, with a focus on Hungary. During this period, Lithuania had the highest weighted average suicide rate of 42.6 per 100,000 people, while Syria had the lowest at 1.8 per 100,000 people. The average suicide rate across analyzed countries during this timeframe was 10.91 per 100,000 people.Please note that the Gini Index data displayed in this dashboard is available for the years 2004 to 2019.
+
+## Row 1 {height=25%}
+
+```{r echo=FALSE,message=F,warning=FALSE}
+value_box(
+  title = "Highest Suicide Rate",
+  value = highest_weighted_avg_suicide_rate_value,
+  showcase = bsicons::bs_icon("graph-up-arrow"),
+  theme = value_box_theme(bg = "#ff6f61", fg = "black"),
+  p(paste0("(",highest_weighted_avg_suicide_rate_country, ")"))
+  )
+```
+
+```{r echo=FALSE,message=F,warning=FALSE}
+value_box(
+  title = "Lowest Suicide Rate",
+  value = lowest_weighted_avg_suicide_rate_value,
+  showcase = bsicons::bs_icon("graph-down-arrow"),
+  theme = value_box_theme(bg ="#ffcc5c", fg = "black"),
+   p(paste0("(",lowest_weighted_avg_suicide_rate_country, ")"))
+  )
+```
+
+```{r echo=FALSE,message=F,warning=FALSE}
+value_box(
+  title = "Average Suicide Rate",
+  value = overall_avg_suicide_rate,
+  showcase = bsicons::bs_icon("graph-up"),
+  theme = value_box_theme(bg ="#a0ced9", fg = "black")
+)
+```
+
+## Row 2 {height=75%}
+
+```{r echo=FALSE,message=F,warning=FALSE}
+# ggplot for the map with frame and tooltip labels
+suicide_rate_map <- ggplot(world_data, aes(fill = suicide_rate_per_100k, frame = year, text = tooltip_label)) +
+  geom_sf() +
+  scale_fill_viridis_c(option = "viridis", na.value = "grey50") +
+  labs(title = 'Worldwide Suicide Rate per 100,000 Population 1995-2019',
+       fill = 'Suicide Rate',
+       caption = 'Data Source: Gapminder') +
+  theme_minimal() +
+  coord_sf()
+
+# Convert ggplot to plotly for interactive visualization
+ ggplotly(suicide_rate_map, tooltip = "text")
+```
+
+
+# GINI INDEX
+
+Please note that the Gini Index data displayed in this dashboard is available for the years 2004 to 2019.
+
+## Row 1 {height=50%}
+
+
+```{r echo=FALSE,message=F,warning=FALSE}
 #timeseries plotly
 time_series_plot <- ggplot(hungary_suicide_data_adjusted, aes(x = year, y = adjusted_suicide_rate_per_100k)) +
   geom_line(color = "blue") +
@@ -209,32 +227,13 @@ time_series_plot <- ggplot(hungary_suicide_data_adjusted, aes(x = year, y = adju
        y = "Suicide Rate per 100,000 People") +
   theme_minimal()
 
-time_series_plotly <- ggplotly(time_series_plot)
+ggplotly(time_series_plot)
+```
 
-# Calculate weighted average suicide rate per year
-weighted_avg_by_year <- hungary_suicide_data %>%
-  group_by(year) %>%
-  summarise(weighted_avg_suicide_rate_per_100k = weighted.mean(suicide_rate_per_100k, population))
+## Row 2 {height=50%}
 
-# Create a bar plot
-weighted_avg_bar_plot <- ggplot(weighted_avg_by_year, aes(x = factor(year), y = weighted_avg_suicide_rate_per_100k, fill = factor(year))) +
-  geom_bar(stat = "identity") +
-  coord_flip()+
-  labs(title = "Weighted Average Suicide Rates in Hungary by Year",
-       x = "Year",
-       y = "Weighted Average Suicide Rate per 100,000 People") +
-  theme_minimal() +
-  theme(legend.position = "none")
 
-#lINE_PLOT DUAL AXIS
-line_plot_dual_axis <- ggplot(hungary_suicide_data_adjusted, aes(x = year)) +
-  geom_line(aes(y = suicide_rate_per_100k), color = "blue") +
-  geom_line(aes(y = gini_index * 10), color = "red") +  # Assuming Gini Index is scaled for visibility
-  labs(title = "Suicide Rates and Gini Index in Hungary (1995-2019)",
-       x = "Year",
-       y = "Suicide Rate (blue) / Gini Index (red, scaled)") +
-  theme_minimal()
-
+```{r echo=FALSE,message=F,warning=FALSE}
 # Correlation plot (interactive)
 adjusted_correlation_plot <- ggplot(hungary_suicide_data_adjusted, 
                                     aes(x = gini_index,
@@ -252,92 +251,7 @@ adjusted_correlation_plot <- ggplot(hungary_suicide_data_adjusted,
   theme_minimal()+
   theme(legend.position = "none")
 
-# Convert ggplot to plotly
-adjusted_correlation_plotly <- ggplotly(adjusted_correlation_plot, tooltip = "text")
-
-```
-
-
-# HOME 
-
-The project explores global suicide rates in relation to the Gini Index—a measure of income inequality from 0 to 1—between 1995 and 2019. Using population data, it aims to offer demographic insights into worldwide suicide rates through an interactive dashboard. This tool will aid policymakers, researchers, and the public in understanding these socio-economic factors, with a focus on Hungary. During this period, Lithuania had the highest weighted average suicide rate of 42.6 per 100,000 people, while Syria had the lowest at 1.8 per 100,000 people. The average suicide rate across analyzed countries during this timeframe was 10.91 per 100,000 people.Please note that the Gini Index data displayed in this dashboard is available for the years 2004 to 2019.
-
-## Row 1 {height=25%}
-
-```{r}
-value_box(
-  title = "Highest Suicide Rate",
-  value = highest_weighted_avg_suicide_rate_value,
-  showcase = bsicons::bs_icon("graph-up-arrow"),
-  theme = value_box_theme(bg = "#ff6f61", fg = "black"),
-  p(paste0("(",highest_weighted_avg_suicide_rate_country, ")"))
-  )
-```
-
-```{r}
-value_box(
-  title = "Lowest Suicide Rate",
-  value = lowest_weighted_avg_suicide_rate_value,
-  showcase = bsicons::bs_icon("graph-down-arrow"),
-  theme = value_box_theme(bg ="#ffcc5c", fg = "black"),
-   p(paste0("(",lowest_weighted_avg_suicide_rate_country, ")"))
-  )
-```
-
-```{r}
-value_box(
-  title = "Average Suicide Rate",
-  value = overall_avg_suicide_rate,
-  showcase = bsicons::bs_icon("graph-up"),
-  theme = value_box_theme(bg ="#a0ced9", fg = "black")
-)
-```
-
-## Row 2 {height=75%}
-
-### {width=50%}
-
-```{r}
-bar_plot_1_plotly
-```
-
-### {width=50%}
-
-```{r}
-suicide_rate_map_plotly
-```
-
-
-# GINI INDEX
-
-Please note that the Gini Index data displayed in this dashboard is available for the years 2004 to 2019.
-
-## Row 1 {height=50%}
-
-### {width=50%}
-
-```{r}
-time_series_plotly
-```
-
-### {width=50%} 
-
-```{r}
-weighted_avg_bar_plot
-```
-
-## Row 2 {height=50%}
-
-### {width=50%}
-
-```{r}
-line_plot_dual_axis
-```
-
-### {width=50%}
-
-```{r}
-adjusted_correlation_plotly
+ggplotly(adjusted_correlation_plot, tooltip = "text")
 ```
 
 
@@ -345,21 +259,18 @@ adjusted_correlation_plotly
 
 The data used in this dashboard is shown below and can be downloaded as a CSV.
 
-```{r echo=FALSE, eval=TRUE}
-# Filter the data for years 1995 to 2019
-summary_data <- hungary_suicide_data %>%
-  filter(year >= 1995 & year <= 2019) %>%
-  select(country, year, population, suicide_rate_per_100k, gini_index)
+```{r}
+library(htmltools)
 
-# Create a reactable table and a download button
 htmltools::browsable(
   tagList(
-    reactable(summary_data, 
+    reactable(
+      data = head(world_data), 
               elementId = "Suicide-Data-Table", 
               searchable = TRUE, 
               filterable = TRUE, 
               pagination = TRUE,
-              defaultPageSize = 10,
+              defaultPageSize = 20,
               columns = list(
                 country = colDef(name = "Country"),
                 year = colDef(name = "Year"),
